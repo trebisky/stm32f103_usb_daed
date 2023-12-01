@@ -37,11 +37,19 @@ enum {
 #define USART1_TX_PIN PA9
 #define USART1_RX_PIN PA10
 
+void printf ( char *, ... );
+
+#define MAPLE
+
+#ifdef MAPLE
 // Change LED pin for Maple
-// #define LED0_PIN      PC13
 #define LED0_PIN      PA5
 // for maple
 #define USB_PIN      PC12
+
+#else
+#define LED0_PIN      PC13
+#endif
 
 /* clang-format off */
 static struct gpio_config_t {
@@ -56,7 +64,9 @@ static struct gpio_config_t {
     // For Maple
     // {LED0_PIN, Mode_Out_OD_2MHz},
     {LED0_PIN, Mode_Out_PP_2MHz},
+#ifdef MAPLE
     {USB_PIN, Mode_Out_PP_2MHz},
+#endif
     {0, 0}, // sentinel
 };
 /* clang-format on */
@@ -89,11 +99,11 @@ void USB_LP_CAN1_RX0_IRQ_Handler(void) {
     uint64_t now = cycleCount();
     led0_toggle();
     static int i = 0;
-    cbprintf(u1puts, "%lld IRQ %i: %s\n", now / 72, i++, usb_state_str(usb_state()));
+    cbprintf(u1puts, "%lld IRQ %i: %s\r\n", now / 72, i++, usb_state_str(usb_state()));
     uint8_t buf[64];
     size_t  len = usb_recv(buf, sizeof buf);
     if (len > 0) {
-        cbprintf(u1puts, "received %i: %*s\n", len, len, buf);
+        cbprintf(u1puts, "received %i: %*s\r\n", len, len, buf);
     }
 }
 
@@ -102,8 +112,8 @@ void TIM3_IRQ_Handler(void) {
         return;
     TIM3.SR &= ~TIM_SR_UIF;
     static int i = 0;
-    cbprintf(u1puts, "USB %i: %s\n", i, usb_state_str(usb_state()));
-    cbprintf(usb_puts, "bingo %i\n", i++);
+    cbprintf(u1puts, "USB %i: %s\r\n", i, usb_state_str(usb_state()));
+    cbprintf(usb_puts, "bingo %i\r\n", i++);
 }
 
 int main(void) {
@@ -132,15 +142,18 @@ int main(void) {
 
     led0_off();
 
+#ifdef MAPLE
     // tjt for maple
     digitalLo(USB_PIN);
+#endif
 
-    usart_init(&USART1, 921600);
+    // usart_init(&USART1, 921600);
+    usart_init ( &USART1, 115200 );
 
-    cbprintf(u1puts, "SWREV:%s\n", __REVISION__);
-    cbprintf(u1puts, "CPUID:%08lx\n", SCB.CPUID);
-    cbprintf(u1puts, "DEVID:%08lx:%08lx:%08lx\n", UNIQUE_DEVICE_ID[2], UNIQUE_DEVICE_ID[1], UNIQUE_DEVICE_ID[0]);
-    cbprintf(u1puts, "RESET:%02x%s%s%s%s%s%s\n", rf, rf & 0x80 ? " LPWR" : "", rf & 0x40 ? " WWDG" : "", rf & 0x20 ? " IWDG" : "",
+    cbprintf(u1puts, "SWREV:%s\r\n", __REVISION__);
+    cbprintf(u1puts, "CPUID:%08lx\r\n", SCB.CPUID);
+    cbprintf(u1puts, "DEVID:%08lx:%08lx:%08lx\r\n", UNIQUE_DEVICE_ID[2], UNIQUE_DEVICE_ID[1], UNIQUE_DEVICE_ID[0]);
+    cbprintf(u1puts, "RESET:%02x%s%s%s%s%s%s\r\n", rf, rf & 0x80 ? " LPWR" : "", rf & 0x40 ? " WWDG" : "", rf & 0x20 ? " IWDG" : "",
              rf & 0x10 ? " SFT" : "", rf & 0x08 ? " POR" : "", rf & 0x04 ? " PIN" : "");
     usart_wait(&USART1);
 
@@ -153,7 +166,7 @@ int main(void) {
 
     usb_init();
 
-    cbprintf(u1puts, "USB after init: %s\n", usb_state_str(usb_state()));
+    cbprintf(u1puts, "USB after init: %s\r\n", usb_state_str(usb_state()));
 
     NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
 
@@ -170,3 +183,79 @@ int main(void) {
 
     return 0;
 }
+
+#ifdef notyet
+/* TJT - give me a printf that takes care of the \r\n thing for me.
+ *
+ * What a mess!
+ * I finally gave up when the compiler gave me inscrutable errors
+ * about the use of rb_putcb.
+ * It isn't worth it.
+ *
+ * Why didn't the original author deal with this \r\n business?
+ */
+
+#define STB_SPRINTF_MIN 512
+
+typedef char * STBSP_SPRINTFCB( char const * buf, void * user, int len );
+void stbsp_set_separators( char comma, char period );
+int stbsp_vsprintfcb( STBSP_SPRINTFCB * callback, void * user, char * buf, char const * fmt, va_list va );
+
+
+static void
+fix_fmt ( char *old, char *new )
+{
+    while ( *old ) {
+	if ( *old == '\n' )
+	    *new++ = '\r';
+	*new++ = *old++;
+    }
+    *new++ = '\0';
+}
+
+// copied from printf.c rather than making global
+// a little signature adapter
+static char *
+rb_putcb(char *buf, void *user, int len) {
+    puts_t *callback = (puts_t *)user;
+    size_t  ln       = len;  // explicit cast
+    if (callback(buf, len) < ln) {
+        return NULL;
+    }
+    return buf;
+}
+
+void
+printf ( char *fmt, ... )
+{
+    char fixed[80];
+    va_list args;
+
+    fix_fmt ( fmt, fixed );
+    va_start(args, fmt);
+
+    char b[STB_SPRINTF_MIN];
+    stbsp_set_separators('\'', '.');
+    (void) stbsp_vsprintfcb ( rb_putcb, u1puts, b, fixed, args);
+    // char * (*)(char *, void *, int)
+
+    va_end(args);
+}
+
+#ifdef notdef
+/* From printf.c */
+int cbprintf(puts_t *callback, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+
+    char b[STB_SPRINTF_MIN];
+    stbsp_set_separators('\'', '.');
+    int rv = stbsp_vsprintfcb(rb_putcb, callback, b, fmt, ap);
+
+    va_end(ap);
+    return rv;
+}
+#endif
+#endif
+
+// THE END

@@ -587,8 +587,10 @@ static void handle_ep0(void) {
             // last request was a SET, so we are here because we sent the ACK
             // if the request was set_address, we should execute it here
             if (_ctrl_req.req == REQ_SET_ADDRESS) {
-                usb_daddr_set_add(_ctrl_req.val);
-                USB.DADDR |= USB_DADDR_EF;
+		// TJT -- this works just fine.
+                // usb_daddr_set_add(_ctrl_req.val);
+                // USB.DADDR |= USB_DADDR_EF;
+                USB.DADDR = USB_DADDR_EF | (_ctrl_req.val & 0x3f);
                 _usb_state = (_ctrl_req.val == 0) ? USB_DEFAULT : USB_ADDRESS;
             }
         } else {

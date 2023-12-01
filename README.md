@@ -21,6 +21,8 @@ What I have done:
 - add code for USB disconnect as per Maple
 - Makefile: use openocd and stlink-v2 device for "make flash"
 - Makefile: get rid of linker rwx warning
+- main.c: add \r\n to all printf strings
+- change serial console to 115200 baud
 
 The code was originally written for the Blue Pill (which I have).
 I have been doing USB experimentation using an original Maple board.
