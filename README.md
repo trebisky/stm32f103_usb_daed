@@ -1,4 +1,9 @@
-# stm32f103_usb
+# stm32f103_usb_daed
+
+Here is a link to the original README for the project:
+
+[a relative link](README_orig.md)
+
 Minimal usb-from-scratch serial port implementation and demo for STM32F103. 
 
 This is a rather bare-bones environment for the STM32F103 "Blue Pill" platform.  
