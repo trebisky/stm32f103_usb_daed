@@ -581,16 +581,48 @@ static void handle_ep0(void) {
 
     case USB_EPRx_CTR_TX: // USB IN: sent the reply for the most recent GET or the ACK for the most recent SET
 
+#ifdef notdef
+// enum {
+//         XXX_DADDR_EF    = 1UL<<7,               // Enable function
+//         XXX_DADDR_ADD   = ((1UL<<7)-1) << 0,    // Device address
+// };
+
+#define XXX_DADDR_EF    0x80
+#define XXX_DADDR_ADD   0x7f
+
+inline void
+xxx_daddr_set_add (uint16_t val)
+{
+	USB.DADDR = (USB.DADDR & ~XXX_DADDR_ADD) | ((val<<0) & XXX_DADDR_ADD);
+}
+#endif
+
         usb_ep_clr_ctr_tx(0);
 
         if (_ctrl_req.len == 0) {
             // last request was a SET, so we are here because we sent the ACK
             // if the request was set_address, we should execute it here
             if (_ctrl_req.req == REQ_SET_ADDRESS) {
-		// TJT -- this works just fine.
-                // usb_daddr_set_add(_ctrl_req.val);
-                // USB.DADDR |= USB_DADDR_EF;
-                USB.DADDR = USB_DADDR_EF | (_ctrl_req.val & 0x3f);
+		int val;
+		// TJT -- these two lines work just fine.
+                 // usb_daddr_set_add(_ctrl_req.val);
+                 // USB.DADDR |= USB_DADDR_EF;
+
+		 // OK
+                 // xxx_daddr_set_add(_ctrl_req.val);
+                 // USB.DADDR |= XXX_DADDR_EF;
+
+		 // OK
+		 // val = USB.DADDR & ~XXX_DADDR_ADD;
+		 // val |= _ctrl_req.val & XXX_DADDR_ADD;
+                 // USB.DADDR = val;
+                 // USB.DADDR |= XXX_DADDR_EF;
+
+		// OK to this.
+                USB.DADDR = _ctrl_req.val & 0x7f | 0x80;
+
+		// no! to the following
+                // USB.DADDR = USB_DADDR_EF | (_ctrl_req.val & 0x3f);
                 _usb_state = (_ctrl_req.val == 0) ? USB_DEFAULT : USB_ADDRESS;
             }
         } else {

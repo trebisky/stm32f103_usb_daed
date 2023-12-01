@@ -37,7 +37,10 @@ enum {
 #define USART1_TX_PIN PA9
 #define USART1_RX_PIN PA10
 
-void printf ( char *, ... );
+// void printf ( char *, ... );
+void enum_handler ( void );
+void enum_log_init ( void );
+void enum_log_show ( void );
 
 #define MAPLE
 
@@ -97,11 +100,16 @@ static size_t usb_puts(const char* buf, size_t len) { return usb_send(buf, len);
 
 void USB_LP_CAN1_RX0_IRQ_Handler(void) {
     uint64_t now = cycleCount();
-    led0_toggle();
+
+    led0_toggle ();
+    // enum_handler ();
+
     static int i = 0;
     cbprintf(u1puts, "%lld IRQ %i: %s\r\n", now / 72, i++, usb_state_str(usb_state()));
+
     uint8_t buf[64];
     size_t  len = usb_recv(buf, sizeof buf);
+
     if (len > 0) {
         cbprintf(u1puts, "received %i: %*s\r\n", len, len, buf);
     }
@@ -110,15 +118,21 @@ void USB_LP_CAN1_RX0_IRQ_Handler(void) {
 void TIM3_IRQ_Handler(void) {
     if ((TIM3.SR & TIM_SR_UIF) == 0)
         return;
+
     TIM3.SR &= ~TIM_SR_UIF;
     static int i = 0;
+
+    led0_toggle ();
     cbprintf(u1puts, "USB %i: %s\r\n", i, usb_state_str(usb_state()));
     cbprintf(usb_puts, "bingo %i\r\n", i++);
 }
 
 int main(void) {
 
+    uint8_t enum_wait;
+
     uint8_t rf = (RCC.CSR >> 24) & 0xfc;
+
     RCC.CSR |= RCC_CSR_RMVF; // Set RMVF bit to clear the reset flags
 
     SysTick_Config(1U << 24); // tick at 72Mhz/2^24 = 4.2915 HZ
@@ -164,11 +178,15 @@ int main(void) {
     TIM3.CR1 |= TIM_CR1_CEN;
     NVIC_EnableIRQ(TIM3_IRQn);
 
+    enum_log_init ();
+
     usb_init();
 
     cbprintf(u1puts, "USB after init: %s\r\n", usb_state_str(usb_state()));
 
     NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
+
+    enum_wait = 1;
 
     for (;;) {
         __enable_irq();
@@ -177,12 +195,22 @@ int main(void) {
 
         __WFI(); // wait for interrupt to change the state of any of the subsystems
 
+	if ( enum_wait && usb_state () == USB_CONFIGURED ) {
+	    enum_log_show ();
+	    enum_wait = 0;
+	}
+
         __disable_irq();
 
     } // forever
 
     return 0;
 }
+
+/* ======================================================================================= */
+/* ======================================================================================= */
+/* ======================================================================================= */
+/* ======================================================================================= */
 
 #ifdef notyet
 /* TJT - give me a printf that takes care of the \r\n thing for me.

@@ -28,6 +28,7 @@ OBJS = \
 	usart.o \
 	printf.o \
 	usb.o \
+	usb_watch.o \
 	main.o \
 
 $(OBJS): Makefile
@@ -43,6 +44,9 @@ $(OBJS): Makefile
 %.hex: %.elf
 	$(SIZE) $<
 	$(OBJCOPY) -O ihex --set-start 0x08000000 $< $@
+
+tags:
+	ctags -R .
 
 hflash: main.hex
 	st-flash --reset --format ihex write main.hex
