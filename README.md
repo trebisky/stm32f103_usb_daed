@@ -1,40 +1,41 @@
 # stm32f103_usb_daed
 
+This is a fork of the following project by "Daedalean AI" on Github:
+
+[Daedalean AI stm32f103_usb](https://github.com/daedaleanai/stm32f103_usb)
+
 Here is a link to the original README for the project:
 
-[a relative link](README_orig.md)
+[The original README](README_orig.md)
 
-Minimal usb-from-scratch serial port implementation and demo for STM32F103. 
+I found it, built it, ran it, and began to play with it, and as I began to
+tinker with it, decided it would be beneficial to set up my own fork.
 
-This is a rather bare-bones environment for the STM32F103 "Blue Pill" platform.  
+==============================
 
-It requires nothing but arm-none-eabi-gcc (tested with v9 and v10) and GNU Make to build and
-has no dependencies on outside code.
+What I have done:
 
-Features:
-- entirely plain C, no assembly
-- customized header declares all devices as true structures, with their absolute addresses provided in the linker script.
-- no #defines or conditional compilations.  All constants are enums. 
-- compact printf implementation based on stb_printf, which can be used with any device for which you provide a puts() function.
-- extremely small usb stack (1.7k) providing a serial port compatible with most operating systems
+- minor change to main.c so it would compile
+- add MAPLE ifdef for the Maple board I am working with
+- change LED as per Maple
+- add code for USB disconnect as per Maple
+- Makefile: use openocd and stlink-v2 device for "make flash"
+- Makefile: get rid of linker rwx warning
 
-To re-use: just cut, copy and paste. Premature Generalisation is The Root Of Much Complexity. 
+The code was originally written for the Blue Pill (which I have).
+I have been doing USB experimentation using an original Maple board.
+A nice advantage of these is that you get a USB disconnect just by
+rebooting, rather than having to unplug/replug the USB cable.
 
+For me to use this with linux, I needed to give the following commands
+on my Fedora 38 system:
 
-KNOWN BUG:  
-while on MacOS the device shows up as /dev/cu.usbmodem123456, on linux, [this line](https://github.com/torvalds/linux/blob/master/drivers/usb/class/cdc-acm.c#L1299) 
-seems to make the cdc_acm driver return cdc_acm: probe of 3-6:1.0 failed with error -22, and prevent
-the appearance of /dev/ttyACMx. 
+su
+echo 0483 5722 >/sys/bus/usb-serial/drivers/generic/new_id
 
-a workaround for is to run
+As soon as I did this, the board showed up as /dev/ttyUSB1 using the
+linux usb-serial driver.  And it works!
 
-    sudo modprobe usbserial vendor=0x0483 product=0x5740
-
-or 
-
-    echo <vid> <pid> >/sys/bus/usb-serial/drivers/generic/new_id
-  
-and you'll have /dev/ttyUSBx instead.
-  
-i'll try to find a vendor/product combination that works on macos & linux out of the box.
-  
+The code also sets up a serial console on pins A9 and A10.
+I already had a CP2102 gadget connected to those pins and was
+able to see console messages (at 921600 baud!).

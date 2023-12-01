@@ -24,11 +24,24 @@
 
 */
 
+/* TJT -- sorry, but the compiler doesn't like this
+ */
+#ifdef notdef
 enum {
     USART1_TX_PIN = PA9,
     USART1_RX_PIN = PA10,
     LED0_PIN      = PC13,
 };
+#endif
+
+#define USART1_TX_PIN PA9
+#define USART1_RX_PIN PA10
+
+// Change LED pin for Maple
+// #define LED0_PIN      PC13
+#define LED0_PIN      PA5
+// for maple
+#define USB_PIN      PC12
 
 /* clang-format off */
 static struct gpio_config_t {
@@ -40,7 +53,10 @@ static struct gpio_config_t {
     {PCAll, Mode_IN}, // reset
     {USART1_TX_PIN, Mode_AF_PP_50MHz},
     {USART1_RX_PIN, Mode_IPU},
-    {LED0_PIN, Mode_Out_OD_2MHz},
+    // For Maple
+    // {LED0_PIN, Mode_Out_OD_2MHz},
+    {LED0_PIN, Mode_Out_PP_2MHz},
+    {USB_PIN, Mode_Out_PP_2MHz},
     {0, 0}, // sentinel
 };
 /* clang-format on */
@@ -115,6 +131,9 @@ int main(void) {
     gpioLock(PCAll);
 
     led0_off();
+
+    // tjt for maple
+    digitalLo(USB_PIN);
 
     usart_init(&USART1, 921600);
 
