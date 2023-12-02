@@ -24,6 +24,9 @@
  *	2 = Reset
  */
 
+void printf ( char *, ... );
+
+#ifdef BOGUS
 #include "printf.h"
 #include "usart.h"
 
@@ -31,6 +34,7 @@ static struct Ringbuffer usart1tx;
 
 static size_t u1puts(const char* buf, size_t len) { return usart_puts(&USART1, &usart1tx, buf, len); }
 // static size_t usb_puts(const char* buf, size_t len) { return usb_send(buf, len); }
+#endif
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -86,15 +90,15 @@ print_buf ( char *data, int count )
 	int i;
 
 	if ( count ) {
-	    // printf ( " " );
-	    cbprintf ( u1puts, " " );
+	    printf ( " " );
+	    // cbprintf ( u1puts, " " );
 	    for ( i=0; i<count; i++ )
-		// printf ( "%02x", *data++ );
-		cbprintf ( u1puts, "%02x", *data++ );
+		printf ( "%02x", *data++ );
+		// cbprintf ( u1puts, "%02x", *data++ );
 	}
 
-	// printf ( "\n" );
-	cbprintf ( u1puts, "\r\n" );
+	printf ( "\n" );
+	// cbprintf ( u1puts, "\r\n" );
 }
 
 /* Quick and dirty.
@@ -250,13 +254,13 @@ enum_log_show ( void )
 	char *wstr;
 	char *sstr;
 
-	// printf ( "Log entries: %d\n", e_count );
+	printf ( "Log entries: %d\n", e_count );
 
 	for ( i=0; i<e_count; i++ ) {
 	    ep = &e_log[i];
 	    if ( ep->what == 2 ) {
-		// printf ( "%3d Enum Reset\n", i );
-		cbprintf ( u1puts, "%3d Enum Reset\r\n", i );
+		printf ( "%3d Enum Reset\n", i );
+		// cbprintf ( u1puts, "%3d Enum Reset\r\n", i );
 		continue;
 	    }
 
@@ -266,13 +270,13 @@ enum_log_show ( void )
 	    // printf ( "%3d Enum %s %2d %08x", i, wstr, ep->count, ep->addr );
 	    // printf ( "%3d Enum %s %s %04x %2d %08x", i, wstr, sstr, ep->epr, ep->count, ep->addr );
 
-	    // printf ( "%3d Enum %s %s %04x %04x %2d", i, wstr, sstr, ep->istr, ep->epr, ep->count );
-	    cbprintf ( u1puts, "%3d Enum %s %s %04x %04x %2d", i, wstr, sstr, ep->istr, ep->epr, ep->count );
+	    printf ( "%3d Enum %s %s %04x %04x %2d", i, wstr, sstr, ep->istr, ep->epr, ep->count );
+	    // cbprintf ( u1puts, "%3d Enum %s %s %04x %04x %2d", i, wstr, sstr, ep->istr, ep->epr, ep->count );
 	    print_buf ( ep->data, ep->count );
 	}
 
-	// printf ( "Total bytes saved: %d\n", s_count );
-	cbprintf ( u1puts, "Total bytes saved: %d\r\n", s_count );
+	printf ( "Total bytes saved: %d\n", s_count );
+	// cbprintf ( u1puts, "Total bytes saved: %d\r\n", s_count );
 }
 
 void

@@ -20,15 +20,20 @@ LDFLAGS		 = -nostartfiles -lnosys -static $(ARCH_FLAGS) $(LTO_FLAGS) $(WARN_FLAG
 
 LD_SCRIPT = stm32_flash_f103_128k.ld
 
+OLD_OBJS = \
+	usart.o \
+	printf.o
+
 OBJS = \
 	vectors.o \
 	boot.o \
 	clock.o \
 	gpio2.o \
-	usart.o \
-	printf.o \
 	usb.o \
 	usb_watch.o \
+	prf.o \
+	serial.o \
+	kyulib.o \
 	main.o \
 
 $(OBJS): Makefile
@@ -72,8 +77,11 @@ depend:
 boot.o: stm32f103_md.h core_cm3.h
 clock.o: stm32f103_md.h core_cm3.h clock.h
 gpio2.o: gpio2.h stm32f103_md.h core_cm3.h
-main.o: stm32f103_md.h core_cm3.h clock.h gpio2.h printf.h usart.h usb.h
-printf.o: printf.h stb_sprintf.h
-usart.o: usart.h stm32f103_md.h core_cm3.h printf.h
+main.o: stm32f103_md.h core_cm3.h clock.h gpio2.h usb.h
+#main.o: stm32f103_md.h core_cm3.h clock.h gpio2.h printf.h usart.h usb.h
+#printf.o: printf.h stb_sprintf.h
+#usart.o: usart.h stm32f103_md.h core_cm3.h printf.h
 usb.o: usb.h stm32f103usb.h gpio2.h stm32f103_md.h core_cm3.h
 vectors.o: stm32f103_md.h core_cm3.h
+
+# THE END

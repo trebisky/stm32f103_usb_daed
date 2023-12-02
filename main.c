@@ -4,9 +4,19 @@
 
 #include "clock.h"
 #include "gpio2.h"
-#include "printf.h"
-#include "usart.h"
+// #include "printf.h"
+// #include "usart.h"
 #include "usb.h"
+
+void printf ( char *, ... );
+void serial_init ( void );
+void serial_flush ( void );
+int serial_pending ( void );
+int serial_basic ( void );
+
+void enum_handler ( void );
+void enum_log_init ( void );
+void enum_log_show ( void );
 
 /*
     STM32F103CB (LQFP48/LQFP48) Pin Assignments:
@@ -36,11 +46,6 @@ enum {
 
 #define USART1_TX_PIN PA9
 #define USART1_RX_PIN PA10
-
-// void printf ( char *, ... );
-void enum_handler ( void );
-void enum_log_init ( void );
-void enum_log_show ( void );
 
 #define MAPLE
 
@@ -80,6 +85,7 @@ static inline void led0_toggle(void) { digitalToggle(LED0_PIN); }
 
 /* clang-format off */
 enum { IRQ_PRIORITY_GROUPING = 5 }; // prio[7:6] : 4 groups,  prio[5:4] : 4 subgroups
+
 struct {
     enum IRQn_Type irq;
     uint8_t        group, sub;
@@ -92,42 +98,62 @@ struct {
 };
 /* clang-format on */
 
-static struct Ringbuffer usart1tx;
+// static struct Ringbuffer usart1tx;
 
-void          USART1_IRQ_Handler(void) { usart_irq_handler(&USART1, &usart1tx); }
-static size_t u1puts(const char* buf, size_t len) { return usart_puts(&USART1, &usart1tx, buf, len); }
+// void          USART1_IRQ_Handler(void) { usart_irq_handler(&USART1, &usart1tx); }
+// static size_t u1puts(const char* buf, size_t len) { return usart_puts(&USART1, &usart1tx, buf, len); }
 static size_t usb_puts(const char* buf, size_t len) { return usb_send(buf, len); }
 
 void USB_LP_CAN1_RX0_IRQ_Handler(void) {
-    uint64_t now = cycleCount();
+    // uint64_t now = cycleCount();
+    uint32_t now = cycleCount() / 72;
+    static int i = 0;
 
     led0_toggle ();
-    // enum_handler ();
 
-    static int i = 0;
-    cbprintf(u1puts, "%lld IRQ %i: %s\r\n", now / 72, i++, usb_state_str(usb_state()));
+    enum_handler ();
+
+    // cbprintf(u1puts, "%lld IRQ %i: %s\r\n", now / 72, i++, usb_state_str(usb_state()));
+
+    // This output competes with the timer output (race)
+    // printf ( "%d IRQ %d: %s\n", now, i++, usb_state_str(usb_state()) );
 
     uint8_t buf[64];
     size_t  len = usb_recv(buf, sizeof buf);
 
     if (len > 0) {
-        cbprintf(u1puts, "received %i: %*s\r\n", len, len, buf);
+        // cbprintf(u1puts, "received %i: %*s\r\n", len, len, buf);
+        printf ( "received %d: %s\n", len, buf);
     }
 }
 
 void TIM3_IRQ_Handler(void) {
+    static int i = 0;
+    static int ccount = 0;
+    int s;
+
     if ((TIM3.SR & TIM_SR_UIF) == 0)
         return;
 
     TIM3.SR &= ~TIM_SR_UIF;
-    static int i = 0;
 
     led0_toggle ();
-    cbprintf(u1puts, "USB %i: %s\r\n", i, usb_state_str(usb_state()));
-    cbprintf(usb_puts, "bingo %i\r\n", i++);
+
+    i++;
+    // cbprintf(u1puts, "USB %i: %s\r\n", i, usb_state_str(usb_state()));
+    s = usb_state();
+    if ( s == USB_CONFIGURED )
+	ccount++;
+
+    if ( ccount < 1 )
+	printf ( "USB %d: %s\n", i, usb_state_str(usb_state()) );
+
+    // cbprintf(usb_puts, "bingo %i\r\n", i++);
+    // usb_puts ( "bingo\n" );
 }
 
-int main(void) {
+int main ( void )
+{
 
     uint8_t enum_wait;
 
@@ -162,36 +188,74 @@ int main(void) {
 #endif
 
     // usart_init(&USART1, 921600);
-    usart_init ( &USART1, 115200 );
+    // usart_init ( &USART1, 115200 );
 
-    cbprintf(u1puts, "SWREV:%s\r\n", __REVISION__);
-    cbprintf(u1puts, "CPUID:%08lx\r\n", SCB.CPUID);
-    cbprintf(u1puts, "DEVID:%08lx:%08lx:%08lx\r\n", UNIQUE_DEVICE_ID[2], UNIQUE_DEVICE_ID[1], UNIQUE_DEVICE_ID[0]);
-    cbprintf(u1puts, "RESET:%02x%s%s%s%s%s%s\r\n", rf, rf & 0x80 ? " LPWR" : "", rf & 0x40 ? " WWDG" : "", rf & 0x20 ? " IWDG" : "",
+    serial_init ();
+    NVIC_EnableIRQ ( USART1_IRQn );
+
+    printf ( " ----  Booting  ---\n" );
+
+    // cbprintf(u1puts, "SWREV:%s\r\n", __REVISION__);
+    // cbprintf(u1puts, "CPUID:%08lx\r\n", SCB.CPUID);
+    // cbprintf(u1puts, "DEVID:%08lx:%08lx:%08lx\r\n", UNIQUE_DEVICE_ID[2], UNIQUE_DEVICE_ID[1], UNIQUE_DEVICE_ID[0]);
+    // cbprintf(u1puts, "RESET:%02x%s%s%s%s%s%s\r\n", rf, rf & 0x80 ? " LPWR" : "", rf & 0x40 ? " WWDG" : "", rf & 0x20 ? " IWDG" : "",
+    //          rf & 0x10 ? " SFT" : "", rf & 0x08 ? " POR" : "", rf & 0x04 ? " PIN" : "");
+
+    printf("SWREV:%s\n", __REVISION__);
+    printf("CPUID:%08x\n", SCB.CPUID);
+    printf("DEVID:%08x:%08x:%08x\n", UNIQUE_DEVICE_ID[2], UNIQUE_DEVICE_ID[1], UNIQUE_DEVICE_ID[0]);
+    printf("RESET:%02x%s%s%s%s%s%s\n", rf, rf & 0x80 ? " LPWR" : "", rf & 0x40 ? " WWDG" : "", rf & 0x20 ? " IWDG" : "",
              rf & 0x10 ? " SFT" : "", rf & 0x08 ? " POR" : "", rf & 0x04 ? " PIN" : "");
-    usart_wait(&USART1);
+
+    // usart_wait(&USART1);
 
     // enable 1Hz TIM3
     TIM3.DIER |= TIM_DIER_UIE;
     TIM3.PSC = 7200 - 1;  // 72MHz/7200   = 10KHz
     TIM3.ARR = 10000 - 1; // 10KHz/10000  = 1Hz
     TIM3.CR1 |= TIM_CR1_CEN;
+
     NVIC_EnableIRQ(TIM3_IRQn);
 
     enum_log_init ();
 
     usb_init();
 
-    cbprintf(u1puts, "USB after init: %s\r\n", usb_state_str(usb_state()));
+    // cbprintf(u1puts, "USB after init: %s\r\n", usb_state_str(usb_state()));
+    // printf("USB after init: %s\n", usb_state_str(usb_state()));
+    // We see: USB after init: UNATTACHED
+
+    /* Make sure all output above is done */
+    // while ( serial_pending() )
+// 	__WFI ();
 
     NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
 
+    __enable_irq();
+    printf ( "Wait\n" );
+
+    for ( ;; ) {
+	__enable_irq();
+	if ( usb_state () == USB_CONFIGURED )
+	    break;
+        __WFI();
+        __disable_irq();
+    }
+
+    printf ( "Wait done\n" );
+
+    serial_basic ();
+    enum_log_show ();
+    enum_log_show ();
+
+#ifdef notdef
+    /* What was this crazy loop intended to do ?? */
     enum_wait = 1;
 
     for (;;) {
         __enable_irq();
 
-        usart_wait(&USART1);
+        // usart_wait(&USART1);
 
         __WFI(); // wait for interrupt to change the state of any of the subsystems
 
@@ -203,87 +267,9 @@ int main(void) {
         __disable_irq();
 
     } // forever
+#endif
 
     return 0;
 }
-
-/* ======================================================================================= */
-/* ======================================================================================= */
-/* ======================================================================================= */
-/* ======================================================================================= */
-
-#ifdef notyet
-/* TJT - give me a printf that takes care of the \r\n thing for me.
- *
- * What a mess!
- * I finally gave up when the compiler gave me inscrutable errors
- * about the use of rb_putcb.
- * It isn't worth it.
- *
- * Why didn't the original author deal with this \r\n business?
- */
-
-#define STB_SPRINTF_MIN 512
-
-typedef char * STBSP_SPRINTFCB( char const * buf, void * user, int len );
-void stbsp_set_separators( char comma, char period );
-int stbsp_vsprintfcb( STBSP_SPRINTFCB * callback, void * user, char * buf, char const * fmt, va_list va );
-
-
-static void
-fix_fmt ( char *old, char *new )
-{
-    while ( *old ) {
-	if ( *old == '\n' )
-	    *new++ = '\r';
-	*new++ = *old++;
-    }
-    *new++ = '\0';
-}
-
-// copied from printf.c rather than making global
-// a little signature adapter
-static char *
-rb_putcb(char *buf, void *user, int len) {
-    puts_t *callback = (puts_t *)user;
-    size_t  ln       = len;  // explicit cast
-    if (callback(buf, len) < ln) {
-        return NULL;
-    }
-    return buf;
-}
-
-void
-printf ( char *fmt, ... )
-{
-    char fixed[80];
-    va_list args;
-
-    fix_fmt ( fmt, fixed );
-    va_start(args, fmt);
-
-    char b[STB_SPRINTF_MIN];
-    stbsp_set_separators('\'', '.');
-    (void) stbsp_vsprintfcb ( rb_putcb, u1puts, b, fixed, args);
-    // char * (*)(char *, void *, int)
-
-    va_end(args);
-}
-
-#ifdef notdef
-/* From printf.c */
-int cbprintf(puts_t *callback, const char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-
-    char b[STB_SPRINTF_MIN];
-    stbsp_set_separators('\'', '.');
-    int rv = stbsp_vsprintfcb(rb_putcb, callback, b, fmt, ap);
-
-    va_end(ap);
-    return rv;
-}
-#endif
-#endif
 
 // THE END

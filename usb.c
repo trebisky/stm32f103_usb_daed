@@ -603,10 +603,10 @@ xxx_daddr_set_add (uint16_t val)
             // last request was a SET, so we are here because we sent the ACK
             // if the request was set_address, we should execute it here
             if (_ctrl_req.req == REQ_SET_ADDRESS) {
-		int val;
+		// int val;
 		// TJT -- these two lines work just fine.
-                 // usb_daddr_set_add(_ctrl_req.val);
-                 // USB.DADDR |= USB_DADDR_EF;
+                 usb_daddr_set_add(_ctrl_req.val);
+                 USB.DADDR |= USB_DADDR_EF;
 
 		 // OK
                  // xxx_daddr_set_add(_ctrl_req.val);
@@ -618,8 +618,8 @@ xxx_daddr_set_add (uint16_t val)
                  // USB.DADDR = val;
                  // USB.DADDR |= XXX_DADDR_EF;
 
-		// OK to this.
-                USB.DADDR = _ctrl_req.val & 0x7f | 0x80;
+		// OK to this.  Sometimes
+                // USB.DADDR = _ctrl_req.val & 0x7f | 0x80;
 
 		// no! to the following
                 // USB.DADDR = USB_DADDR_EF | (_ctrl_req.val & 0x3f);
