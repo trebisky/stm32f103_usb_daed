@@ -47,5 +47,5 @@ entirely and pulled in my own printf code, then reworked my
 serial driver to use a queue and interrupts (otherwise polled
 serial IO during enumeration broke the enumeration).
 
-I hadn't planned to make such radical changed, but it seemed
+I hadn't planned to make such radical changes, but it seemed
 like the only way to make progress.
