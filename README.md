@@ -13,7 +13,7 @@ tinker with it, decided it would be beneficial to set up my own fork.
 
 ==============================
 
-What I have done:
+What I did as a first pass:
 
 - minor change to main.c so it would compile
 - add MAPLE ifdef for the Maple board I am working with
@@ -41,3 +41,11 @@ linux usb-serial driver.  And it works!
 The code also sets up a serial console on pins A9 and A10.
 I already had a CP2102 gadget connected to those pins and was
 able to see console messages (at 921600 baud!).
+
+Later I got fed up with the crazy cbprintf scheme, ditched it
+entirely and pulled in my own printf code, then reworked my
+serial driver to use a queue and interrupts (otherwise polled
+serial IO during enumeration broke the enumeration).
+
+I hadn't planned to make such radical changed, but it seemed
+like the only way to make progress.
